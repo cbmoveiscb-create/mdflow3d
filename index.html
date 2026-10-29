@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>MDFlow 3D</title>
+<style>
+:root{--bg:#eef1f5;--pn:#ffffff;--tx:#0f172a;--mu:#64748b;--bd:#d6dbe3;--ac:#0284c7}
+@media (prefers-color-scheme: dark){:root{--bg:#0b1220;--pn:#111a2c;--tx:#e5e7eb;--mu:#94a3b8;--bd:#24324a;--ac:#38bdf8}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--tx);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;overscroll-behavior:none}
+#cv{position:fixed;inset:0;touch-action:none}#cv canvas{display:block;width:100%;height:100%;touch-action:none}
+#topo{position:fixed;left:0;right:0;top:0;padding:calc(env(safe-area-inset-top) + 8px) 10px 10px;display:flex;align-items:center;gap:8px;background:linear-gradient(var(--bg) 65%,transparent);pointer-events:none;z-index:5}
+#topo h1{font-size:16px;margin:0;flex:1;line-height:1.2}#topo h1 small{display:block;font-weight:400;font-size:12px;color:var(--mu)}
+.fab{pointer-events:auto;min-width:46px;height:46px;border-radius:12px;border:1px solid var(--bd);background:var(--pn);color:var(--tx);font-size:15px;font-weight:700;padding:0 12px}
+.fab.on{background:var(--ac);border-color:var(--ac);color:#fff}
+#voltar{display:none}
+#barra{position:fixed;left:0;right:0;bottom:calc(var(--folha,70px) + 8px);display:none;gap:8px;justify-content:center;padding:0 10px;pointer-events:none;z-index:4}
+#folha{position:fixed;left:0;right:0;bottom:0;transition:transform .22s ease;will-change:transform;background:var(--pn);border-top:1px solid var(--bd);border-radius:16px 16px 0 0;box-shadow:0 -6px 20px #0002;max-height:64vh;display:flex;flex-direction:column;padding-bottom:env(safe-area-inset-bottom);z-index:6}
+#folha.arrasto{transition:none}
+#alca{padding:10px 14px 14px;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}#alca i{display:block;width:56px;height:6px;border-radius:3px;background:var(--mu);opacity:.55;margin:0 auto 10px}
+#alca b{font-size:16px}#alca span{display:block;font-size:13px;color:var(--mu);margin-top:2px}
+#corpo{overflow:auto;padding:0 14px 16px;display:none}#folha.aberta #corpo{display:block}
+.mov{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:12px;border-radius:12px;border:1px solid var(--bd);background:var(--bg);color:var(--tx);font-size:16px;margin-bottom:8px}
+.mov .nb{width:34px;height:34px;border-radius:50%;background:var(--ac);color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center;flex:none}
+.mov small{display:block;color:var(--mu);font-size:13px}
+.abas{display:flex;gap:6px;margin:4px 0 10px}.abas button{flex:1;height:42px;border-radius:10px;border:1px solid var(--bd);background:var(--bg);color:var(--tx);font-size:15px;font-weight:700}.abas button.on{background:var(--ac);border-color:var(--ac);color:#fff}
+.pag{display:none}.pag.on{display:block}
+label.ck{display:flex;align-items:center;gap:12px;font-size:16px;padding:10px 0;border-bottom:1px solid var(--bd)}label.ck input{width:24px;height:24px}
+.t{font-size:12px;letter-spacing:.06em;color:var(--mu);text-transform:uppercase;font-weight:800;margin:14px 0 4px}
+select{width:100%;height:46px;padding:0 10px;border-radius:10px;border:1px solid var(--bd);background:var(--bg);color:var(--tx);font-size:16px}
+.bts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}.bts button{height:46px;border-radius:10px;border:1px solid var(--bd);background:var(--bg);color:var(--tx);font-size:15px;font-weight:700}
+input[type=range]{width:100%;height:40px}
+.us{display:flex;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--bd);font-size:15px}
+.us .n{width:28px;height:28px;border-radius:50%;background:#0f172a;color:#fff;font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center;flex:none}
+.us .sw{width:14px;height:14px;border-radius:3px;flex:none}.us div{flex:1}.us small{display:block;color:var(--mu);font-size:13px}.us b.m{font-size:17px;white-space:nowrap}
+.leg label{display:flex;align-items:center;gap:12px;font-size:16px;padding:9px 0}.leg i{width:20px;height:20px;border-radius:4px;display:inline-block;border:1px solid #0003}.leg input{width:24px;height:24px}
+.lbl{position:fixed;transform:translate(-50%,-120%);background:#0f172aee;color:#fff;font:800 13px/1.2 system-ui,Arial;padding:4px 8px;border-radius:7px;white-space:nowrap;pointer-events:none;border:1px solid #fff6;z-index:3}
+.lbl.mv{background:#0284c7ee;font-size:14px;padding:6px 10px}
+#msg{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:#0f172add;color:#fff;padding:14px 18px;border-radius:12px;font-size:15px;text-align:center;pointer-events:none;transition:opacity .5s;z-index:9;max-width:86vw}
+#filtros{position:fixed;left:0;right:0;top:calc(env(safe-area-inset-top) + 66px);display:none;gap:6px;padding:0 10px;z-index:5;overflow-x:auto;scrollbar-width:none}
+#filtros button{flex:none;height:38px;padding:0 12px;border-radius:19px;border:1px solid var(--bd);background:var(--pn);color:var(--mu);font-size:14px;font-weight:700;text-decoration:line-through}
+#filtros button.on{background:var(--ac);border-color:var(--ac);color:#fff;text-decoration:none}
+.mov.oculto{opacity:.45}.mov .nb.painel{background:#b45309}.mov .nb.arremate{background:#ea580c}.mov .nb{font-size:13px}
+#obsMov{font-size:14px;color:var(--mu);margin:2px 0 10px;line-height:1.35}#obsMov:empty{display:none}
+#lista{position:fixed;inset:0;overflow:auto;padding:calc(env(safe-area-inset-top) + 18px) 16px 30px;background:var(--bg);display:none;z-index:8}
+#lista h1{font-size:20px}
+</style></head><body>
+<div id="cv"></div>
+<div id="topo"><button class="fab" id="voltar">← Ambiente</button><h1 id="tit">MDFlow 3D</h1><button class="fab" id="bExp">💥 Explodir</button></div>
+<div id="filtros"></div>
+<div id="barra"><button class="fab" id="bFrente">Frente</button><button class="fab" id="bIso">3D</button><button class="fab" id="bLado">Lado</button><button class="fab" id="bTodas">⟲ Tudo</button></div>
+<div id="folha"><div id="alca"><i></i><b id="aTit">Carregando…</b><span id="aSub"></span></div>
+ <div id="corpo">
+  <div id="pAmb"></div>
+  <div id="pMov" style="display:none"><div id="obsMov"></div>
+   <div class="abas"><button class="on" data-p="pPeca">Peça</button><button data-p="pVista">Vista</button></div>
+   <div class="pag on" id="pPeca"><select id="selP"></select><div class="bts"><button id="bIsolar">Isolar a peça</button><button id="bPng">Salvar imagem</button></div><div id="info"></div></div>
+   <div class="pag" id="pVista">
+    <div class="t">Explodir</div><input type="range" id="exp" min="0" max="1" step="0.05" value="0">
+    <label class="ck"><input type="checkbox" id="vPortas" checked> Portas e frentes</label>
+    <label class="ck"><input type="checkbox" id="vFundo" checked> Fundos 6mm</label>
+    <label class="ck"><input type="checkbox" id="vTransp"> Peças transparentes (ver o fundo dos furos)</label>
+    <label class="ck"><input type="checkbox" id="vRot" checked> Números em cima dos furos</label>
+    <div class="t">Usinagens</div><div class="leg" id="leg"></div>
+   </div>
+  </div>
+ </div>
+</div>
+<div id="lista"></div>
+<div id="msg">Carregando…</div>
+<script src="three.min.js"></script>
+<script>if (!window.THREE) document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"><\/script>');</script>
+<script>
+(function () {
+const $ = id => document.getElementById(id);
+// Na internet (GitHub Pages): o projeto vem de um gist secreto; na fábrica: do servidor do PC.
+const NUVEM = /\.github\.io$/i.test(location.hostname) || /[?&]nuvem=1/.test(location.search);
+const DICA_REDE = NUVEM ? 'Confira se o celular está com internet (4G ou Wi-Fi).' : 'Confira se o celular está no Wi-Fi da fábrica.';
+const msg = (t, seg) => { const m = $('msg'); m.innerHTML = t; m.style.opacity = 1; if (seg) setTimeout(() => { m.style.opacity = 0; }, seg * 1000); };
+if (!window.THREE) { msg('Não consegui carregar o 3D.<br>' + DICA_REDE); return; }
+const TIPOS = { dobradica:['Furo de dobradiça','#7c3aed'], furo:['Furos (VB, pino, parafuso)','#111827'], rebaixo:['Rebaixos','#f97316'], rasgo:['Rasgo do fundo','#2563eb'], recorte:['Recortes','#dc2626'] };
+const ON = { dobradica:true, furo:true, rebaixo:true, rasgo:true, recorte:true };
+let D = null, modo = 'amb', mvAtual = null;
+// ---- cena
+const cv = $('cv'), celular = matchMedia('(pointer: coarse)').matches;
+const renderer = new THREE.WebGLRenderer({ antialias: !celular || (window.devicePixelRatio || 1) < 2, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
+const PR = Math.min(celular ? 1.75 : 2, window.devicePixelRatio || 1); renderer.setPixelRatio(PR); cv.appendChild(renderer.domElement);
+const scene = new THREE.Scene(), escuro = matchMedia('(prefers-color-scheme: dark)').matches;
+scene.background = new THREE.Color(escuro ? 0x0b1220 : 0xeef1f5);
+const cam = new THREE.PerspectiveCamera(32, 1, 10, 80000);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x8899aa, 0.85));
+const dl = new THREE.DirectionalLight(0xffffff, 0.55); dl.position.set(1500, 3000, 2500); scene.add(dl);
+const dl2 = new THREE.DirectionalLight(0xffffff, 0.25); dl2.position.set(-2000, 1000, -1500); scene.add(dl2);
+const linhaMat = new THREE.LineBasicMaterial({ color: 0x111111 }), selMat = new THREE.LineBasicMaterial({ color: 0x0ea5e9 }), usLinha = new THREE.LineBasicMaterial({ color: 0x000000 });
+const usMat = {}; Object.entries(TIPOS).forEach(([k,[,c]]) => { usMat[k] = new THREE.MeshStandardMaterial({ color: c, roughness: .5 }); });
+const grAmb = new THREE.Group(), grMov = new THREE.Group(); scene.add(grAmb); scene.add(grMov);
+function shapeDe(pts, W, mirror){ const sh = new THREE.Shape(); pts.forEach((q,i)=>{ const x = mirror ? W - q[0] : q[0]; if(i) sh.lineTo(x,q[1]); else sh.moveTo(x,q[1]); }); return sh; }
+// monta um móvel (em mm do móvel: 0..L, 0..A, 0..P). detalhe = com as usinagens
+function montar(mv, detalhe){
+  const raiz = new THREE.Group(), objs = [];
+  mv.pecas.forEach(p => {
+    const X = new THREE.Vector3(...p.X), Y = new THREE.Vector3(...p.Y), Z = new THREE.Vector3(...p.Z); let O = new THREE.Vector3(...p.O);
+    const mirror = X.clone().cross(Y).dot(Z) < 0, Xr = mirror ? X.clone().multiplyScalar(-1) : X; if (mirror) O = O.clone().add(X.clone().multiplyScalar(p.W));
+    const m = new THREE.Matrix4().makeBasis(Xr, Y, Z).setPosition(O), g = new THREE.Group(); raiz.add(g);
+    const geo = new THREE.ExtrudeGeometry(shapeDe(p.cont || [[0,0],[p.W,0],[p.W,p.H],[0,p.H]], p.W, mirror), { depth: p.T, bevelEnabled:false, curveSegments: detalhe ? 12 : 4 });
+    const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: p.cor, roughness: .8, polygonOffset:true, polygonOffsetFactor:1, polygonOffsetUnits:1 }));
+    mesh.matrixAutoUpdate = false; mesh.matrix.copy(m); g.add(mesh);
+    const edges = new THREE.LineSegments(new THREE.EdgesGeometry(geo, 25), linhaMat); edges.matrixAutoUpdate = false; edges.matrix.copy(m); g.add(edges);
+    const us = [];
+    if (detalhe) p.us.forEach(u => {
+      let ug, cx, cy; const prof = Math.max(0.6, u.prof || 0.6), up = 0.35;
+      if (u.f === 'c') { ug = new THREE.CylinderGeometry(u.r, u.r, prof + up, 24); ug.rotateX(Math.PI/2); cx = mirror ? p.W - u.x : u.x; cy = u.y; ug.translate(cx, cy, (prof - up)/2); }
+      else if (u.f === 'r') { ug = new THREE.BoxGeometry(u.w, u.h, prof + up); cx = mirror ? p.W - (u.x + u.w/2) : u.x + u.w/2; cy = u.y + u.h/2; ug.translate(cx, cy, (prof - up)/2); }
+      else if (u.f === 'p') { ug = new THREE.ExtrudeGeometry(shapeDe(u.pts, p.W, mirror), { depth: prof + up, bevelEnabled:false }); ug.translate(0,0,-up); const sm = u.pts.reduce((a,q)=>[a[0]+q[0],a[1]+q[1]],[0,0]); cx = mirror ? p.W - sm[0]/u.pts.length : sm[0]/u.pts.length; cy = sm[1]/u.pts.length; }
+      if (!ug) return;
+      const um = new THREE.Mesh(ug, usMat[u.t] || usMat.furo); um.matrixAutoUpdate = false; um.matrix.copy(m); g.add(um);
+      const ue = new THREE.LineSegments(new THREE.EdgesGeometry(ug, 30), usLinha); ue.matrixAutoUpdate = false; ue.matrix.copy(m); g.add(ue);
+      us.push({ mesh: um, edge: ue, d: u, pos: new THREE.Vector3(cx, cy, -1).applyMatrix4(m) });
+    });
+    objs.push({ g, mesh, edges, p, base: new THREE.Vector3(...p.c), us });
+  });
+  (mv.extras || []).forEach(e => { const g = new THREE.Group(); raiz.add(g); const geo = new THREE.BoxGeometry(...e.d);
+    const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: e.cor, roughness:.8 })); mesh.position.set(...e.c); g.add(mesh);
+    const ed = new THREE.LineSegments(new THREE.EdgesGeometry(geo), linhaMat); ed.position.set(...e.c); g.add(ed);
+    objs.push({ g, mesh, edges: ed, p: { nome: e.nome, W: e.d[0], H: e.d[1], T: e.d[2], us: [], cor: e.cor, chapa: '' }, base: new THREE.Vector3(...e.c), us: [] }); });
+  return { raiz, objs };
+}
+// ---- câmera e toque
+let alvo = new THREE.Vector3(), dist = 6000, teta = 0.55, fi = 1.15;
+function camAt(){ const v = new THREE.Vector3(Math.sin(fi)*Math.sin(teta), Math.cos(fi), Math.sin(fi)*Math.cos(teta)).multiplyScalar(dist); cam.position.copy(alvo).add(v); cam.lookAt(alvo); }
+let pedido = false; function pedir(){ if (pedido) return; pedido = true; requestAnimationFrame(() => { pedido = false; camAt(); renderer.render(scene, cam); rotulos(); }); }
+function tam(){ renderer.setSize(innerWidth, innerHeight, false); cam.aspect = innerWidth / Math.max(1, innerHeight); cam.updateProjectionMatrix(); pedir(); }
+function enquadrar(obj, fator){ const bb = new THREE.Box3().setFromObject(obj); if (bb.isEmpty()) return; bb.getCenter(alvo); const sz = bb.getSize(new THREE.Vector3()); dist = Math.max(sz.x, sz.y, sz.z) * (fator || 1.9) + 200; pedir(); }
+addEventListener('resize', () => { altFolha(); tam(); });
+const el = renderer.domElement, dedos = new Map(); let ini = null, moveu = false, ultToque = 0;
+el.addEventListener('contextmenu', e => e.preventDefault());
+el.addEventListener('pointerdown', e => { el.setPointerCapture(e.pointerId); dedos.set(e.pointerId, { x: e.clientX, y: e.clientY }); moveu = false; ini = pinca(); });
+function pinca(){ const p = [...dedos.values()]; if (p.length < 2) return null; return { d: Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y), mx: (p[0].x + p[1].x)/2, my: (p[0].y + p[1].y)/2 }; }
+function mover(dx, dy){ const k = dist / 700, dir = new THREE.Vector3(); cam.getWorldDirection(dir); const lado = new THREE.Vector3().crossVectors(dir, cam.up).normalize(), up = new THREE.Vector3().crossVectors(lado, dir).normalize(); alvo.add(lado.multiplyScalar(-dx*k)).add(up.multiplyScalar(dy*k)); }
+el.addEventListener('pointermove', e => { const a = dedos.get(e.pointerId); if (!a) return; const dx = e.clientX - a.x, dy = e.clientY - a.y; dedos.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (Math.abs(dx) + Math.abs(dy) > 2) moveu = true;
+  if (dedos.size >= 2) { const p = pinca(); if (ini && p) { dist = Math.max(80, Math.min(40000, dist * ini.d / Math.max(1, p.d))); mover(p.mx - ini.mx, p.my - ini.my); ini = p; } }
+  else if (e.buttons === 2 || e.shiftKey) mover(dx, dy);
+  else { teta -= dx * 0.009; fi = Math.max(0.05, Math.min(Math.PI - 0.05, fi - dy * 0.009)); }
+  pedir(); });
+el.addEventListener('pointerup', e => { const um = dedos.size === 1; dedos.delete(e.pointerId); ini = pinca(); if (um && !moveu) { const ag = Date.now(); if (ag - ultToque < 320) { tocar(e, true); ultToque = 0; } else { ultToque = ag; tocar(e, false); } } });
+el.addEventListener('pointercancel', e => { dedos.delete(e.pointerId); ini = pinca(); });
+el.addEventListener('wheel', e => { e.preventDefault(); dist = Math.max(80, Math.min(40000, dist * (e.deltaY > 0 ? 1.12 : 0.89))); pedir(); }, { passive:false });
+const ray = new THREE.Raycaster();
+function raio(e){ ray.setFromCamera(new THREE.Vector2((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1), cam); }
+// ---- folha de baixo
+const folha = $('folha');
+function altFolha(){ document.documentElement.style.setProperty('--folha', Math.max(0, innerHeight - folha.getBoundingClientRect().top) + 'px'); }
+// Folha de baixo: arrastar a alça pra cima/baixo (ou tocar nela). Com a lista no topo, arrastar pra baixo também fecha.
+let arr = null;
+function folhaIni(y){
+  const aberta = folha.classList.contains('aberta'); if (!aberta) folha.classList.add('aberta');
+  const max = Math.max(0, folha.offsetHeight - $('alca').offsetHeight), off0 = aberta ? 0 : max;
+  folha.classList.add('arrasto'); folha.style.transform = `translateY(${off0}px)`;
+  arr = { y0: y, off0, off: off0, max, aberta, moveu: false, t0: Date.now() };
+}
+function folhaMover(y){ if (!arr) return; const dy = y - arr.y0; if (Math.abs(dy) > 6) arr.moveu = true; arr.off = Math.max(0, Math.min(arr.max, arr.off0 + dy)); folha.style.transform = `translateY(${arr.off}px)`; altFolha(); }
+function folhaSoltar(){
+  if (!arr) return; const a = arr; arr = null; folha.classList.remove('arrasto');
+  let abrir; if (!a.moveu) abrir = !a.aberta; else { const v = (a.off - a.off0) / Math.max(1, Date.now() - a.t0); abrir = v < -0.4 ? true : v > 0.4 ? false : a.off < a.max / 2; }
+  folha.style.transform = `translateY(${abrir ? 0 : a.max}px)`;
+  setTimeout(() => { if (!abrir) folha.classList.remove('aberta'); folha.style.transform = ''; altFolha(); pedir(); }, 230);
+}
+const alca = $('alca');
+alca.addEventListener('pointerdown', e => { alca.setPointerCapture(e.pointerId); folhaIni(e.clientY); });
+alca.addEventListener('pointermove', e => { if (arr) folhaMover(e.clientY); });
+alca.addEventListener('pointerup', folhaSoltar); alca.addEventListener('pointercancel', folhaSoltar);
+const corpo = $('corpo'); let tc = null;
+corpo.addEventListener('touchstart', e => { tc = corpo.scrollTop <= 0 ? { y: e.touches[0].clientY, x: e.touches[0].clientX } : null; }, { passive: true });
+corpo.addEventListener('touchmove', e => { const t = e.touches[0];
+  if (!arr && tc) { const dy = t.clientY - tc.y, dx = t.clientX - tc.x; if (dy > 12 && dy > Math.abs(dx) && corpo.scrollTop <= 0) { folhaIni(tc.y); } else if (dy < -6 || Math.abs(dx) > 12) tc = null; }
+  if (arr) { e.preventDefault(); folhaMover(t.clientY); } }, { passive: false });
+corpo.addEventListener('touchend', () => { tc = null; if (arr) folhaSoltar(); });
+document.querySelectorAll('.abas button').forEach(b => b.onclick = () => { document.querySelectorAll('.abas button').forEach(x => x.classList.toggle('on', x === b)); document.querySelectorAll('.pag').forEach(p => p.classList.toggle('on', p.id === b.dataset.p)); altFolha(); });
+// ================= AMBIENTE =================
+const ambMov = [];   // {mv, grupo, i}
+function montarAmbiente(){
+  D.moveis.forEach((mv, i) => {
+    const { raiz } = montar(mv, false); raiz.position.set(-mv.L/2, -mv.A/2, -mv.P/2);
+    const gp = new THREE.Group(); gp.add(raiz); gp.position.set(mv.pos.X, mv.pos.Y, mv.pos.Z); gp.rotation.y = mv.pos.rotY || 0; grAmb.add(gp);
+    gp.userData.i = i; ambMov.push({ mv, grupo: gp, i, cat: mv.cat || 'movel' });
+  });
+  const bb = new THREE.Box3().setFromObject(grAmb), sz = bb.getSize(new THREE.Vector3()), c = bb.getCenter(new THREE.Vector3());
+  const lado = Math.max(sz.x, sz.z) + 1200, piso = new THREE.Mesh(new THREE.PlaneGeometry(lado, lado), new THREE.MeshStandardMaterial({ color: escuro ? 0x1e293b : 0xe2e8f0, roughness: 1 }));
+  piso.rotation.x = -Math.PI/2; piso.position.set(c.x, bb.min.y - 1, c.z); grAmb.add(piso);
+  const grade = new THREE.GridHelper(lado, Math.round(lado / 500), escuro ? 0x334155 : 0xcbd5e1, escuro ? 0x334155 : 0xcbd5e1); grade.position.set(c.x, bb.min.y, c.z); grAmb.add(grade);
+  listaAmb(); filtrosUI();
+}
+const CATS = [['movel', 'Móveis'], ['painel', 'Painéis'], ['arremate', 'Arremates']], OCULTO = {};
+function catDe(mv){ return mv.cat || 'movel'; }
+function listaAmb(){
+  const num = mv => { const n = parseFloat(String(mv.num || '').replace(/[^0-9.]/g, '')); return isNaN(n) ? 999 : n; };
+  $('pAmb').innerHTML = CATS.map(([c, nome]) => { const it = D.moveis.map((mv, i) => [mv, i]).filter(([mv]) => catDe(mv) === c).sort((x, y) => num(x[0]) - num(y[0])); if (!it.length) return '';
+    return `<div class="t">${nome}${OCULTO[c] ? ' · escondidos' : ''}</div>` + it.map(([mv, i]) => `<button class="mov${OCULTO[c] ? ' oculto' : ''}" data-i="${i}"><span class="nb ${c}">${mv.num || i + 1}</span><span>${mv.nome}<small>${c === 'arremate' ? (mv.obs || '') : `${Math.round(mv.L)} × ${Math.round(mv.A)} × ${Math.round(mv.P)} mm · ${mv.pecas.length} peças`}</small></span></button>`).join(''); }).join('');
+  $('pAmb').querySelectorAll('.mov').forEach(b => b.onclick = () => abrirMovel(+b.dataset.i));
+}
+function filtrosUI(){
+  const tem = CATS.filter(([c]) => D.moveis.some(mv => catDe(mv) === c)), F = $('filtros');
+  if (tem.length < 2) { F.innerHTML = ''; return; }
+  F.innerHTML = tem.map(([c, nome]) => `<button data-c="${c}" class="${OCULTO[c] ? '' : 'on'}">${nome}</button>`).join('');
+  F.querySelectorAll('button').forEach(b => b.onclick = () => { const c = b.dataset.c; OCULTO[c] = !OCULTO[c]; b.classList.toggle('on', !OCULTO[c]); aplicarFiltros(); listaAmb(); });
+}
+function aplicarFiltros(){ ambMov.forEach(a => { a.grupo.visible = !OCULTO[a.cat]; }); pedir(); }
+function visivel(o){ for (; o; o = o.parent) if (o.visible === false) return false; return true; }
+function contagem(){ const n = c => D.moveis.filter(mv => catDe(mv) === c).length, pl = (q, s1, s2) => q ? `${q} ${q > 1 ? s2 : s1}` : '';
+  return [pl(n('movel'), 'móvel', 'móveis'), pl(n('painel'), 'painel', 'painéis'), pl(n('arremate'), 'arremate', 'arremates')].filter(Boolean).join(' · '); }
+function verAmbiente(){
+  modo = 'amb'; grAmb.visible = true; grMov.visible = false; $('voltar').style.display = 'none'; $('filtros').style.display = $('filtros').innerHTML ? 'flex' : 'none'; $('bExp').style.display = 'none'; $('barra').style.display = 'none';
+  $('pAmb').style.display = ''; $('pMov').style.display = 'none';
+  $('tit').innerHTML = `${D.projeto}${D.comodo ? ' · ' + D.comodo : ''}<small>${contagem()} · toque pra abrir</small>`;
+  $('aTit').textContent = 'Lista do ambiente'; $('aSub').textContent = 'Arraste pra cima ou toque aqui';
+  teta = 0.35; fi = 1.05; const bb = new THREE.Box3(); ambMov.forEach(a => bb.expandByObject(a.grupo)); if (!bb.isEmpty()) { bb.getCenter(alvo); const sz = bb.getSize(new THREE.Vector3()); dist = Math.max(sz.x, sz.y, sz.z) * 1.5 + 400; } pedir(); altFolha();
+}
+// ================= MÓVEL =================
+let objs = [], sel = null, isolar = false, Cm = new THREE.Vector3();
+const cacheMov = {};
+function abrirMovel(i, peloVoltar){
+  const mv = D.moveis[i]; modo = 'mov'; mvAtual = i;
+  while (grMov.children.length) grMov.remove(grMov.children[0]);
+  if (!cacheMov[i]) { msg('Montando o móvel…'); cacheMov[i] = montar(mv, true); cacheMov[i].raiz.position.set(-mv.L/2, -mv.A/2, -mv.P/2); }
+  const r = cacheMov[i]; grMov.add(r.raiz); objs = r.objs; Cm.set(mv.L/2, mv.A/2, mv.P/2);
+  grAmb.visible = false; grMov.visible = true; $('voltar').style.display = ''; $('filtros').style.display = 'none'; $('obsMov').textContent = mv.obs || ''; $('bExp').style.display = ''; $('barra').style.display = 'flex';
+  $('pAmb').style.display = 'none'; $('pMov').style.display = '';
+  $('tit').innerHTML = `${mv.num && mv.num !== mv.nome.replace(/^Arremate /, '') ? mv.num + ' · ' : ''}${mv.nome}<small>${Math.round(mv.L)} × ${Math.round(mv.A)} × ${Math.round(mv.P)} mm · ${mv.pecas.length} peças · ${mv.pecas.reduce((a,p)=>a+p.us.length,0)} usinagens</small>`;
+  $('selP').innerHTML = '<option value="">— escolha uma peça —</option>' + objs.map((o,k)=>`<option value="${k}">${o.p.nome}${o.us.length ? ` · ${o.us.length} usin.` : ''}</option>`).join('');
+  $('leg').innerHTML = ''; Object.entries(TIPOS).forEach(([k,[n,c]]) => { const q = objs.reduce((a,o)=>a+o.us.filter(u=>u.d.t===k).length,0); if (!q) return;
+    const l = document.createElement('label'); l.innerHTML = `<input type="checkbox" ${ON[k] ? 'checked' : ''}><i style="background:${c}"></i>${n} <span style="color:var(--mu)">(${q})</span>`; l.querySelector('input').onchange = ev => { ON[k] = ev.target.checked; aplicar(); }; $('leg').appendChild(l); });
+  sel = null; isolar = false; $('exp').value = 0; teta = 0.55; fi = 1.15; alvo.set(0,0,0); dist = Math.max(mv.L, mv.A, mv.P) * 2.1 + 300;
+  aplicar(); infoPeca(); msg('', 0); $('msg').style.opacity = 0;
+  if (!peloVoltar) { if (location.hash.indexOf('/') > 0) history.replaceState({ mov: i }, '', '#' + D.id + '/' + i); else history.pushState({ mov: i }, '', '#' + D.id + '/' + i); }
+}
+$('voltar').onclick = () => { if (history.state && history.state.mov != null) history.back(); else { history.replaceState(null, '', '#' + D.id); verAmbiente(); } };
+// botão "voltar" do celular: do móvel volta pro ambiente (não sai do app)
+addEventListener('popstate', () => {
+  const [id, mvI] = decodeURIComponent(location.hash.slice(1)).split('/');
+  if (!D || id !== D.id) { location.reload(); return; }
+  if (mvI !== undefined && D.moveis[+mvI]) abrirMovel(+mvI, true); else if (modo === 'mov') verAmbiente();
+});
+$('selP').onchange = () => escolher($('selP').value === '' ? null : +$('selP').value, null);
+function tocar(e, duplo){
+  raio(e);
+  if (modo === 'amb') { const h = ray.intersectObjects(grAmb.children, true).find(x => x.object.type === 'Mesh' && visivel(x.object)); if (!h) return;
+    let o = h.object; while (o && o.parent !== grAmb) o = o.parent; if (o && o.userData.i != null) abrirMovel(o.userData.i); return; }
+  const h = ray.intersectObjects(objs.filter(o => o.g.visible).map(o => o.mesh), false)[0];
+  if (!h) { if (!duplo && !isolar) escolher(null, null); return; }
+  escolher(objs.findIndex(o => o.mesh === h.object), duplo ? true : null);
+}
+function escolher(i, iso){
+  sel = i; $('selP').value = i == null ? '' : String(i);
+  if (iso === true) isolar = true; if (i == null) isolar = false;
+  objs.forEach((o,k) => { o.edges.material = k === i ? selMat : linhaMat; });
+  if (i != null && isolar) enquadrar(objs[i].mesh, 2.6);
+  aplicar(); infoPeca();
+}
+$('bIsolar').onclick = () => { if (sel != null) escolher(sel, true); };
+$('bTodas').onclick = () => { isolar = false; const mv = D.moveis[mvAtual]; alvo.set(0,0,0); dist = Math.max(mv.L, mv.A, mv.P) * 2.1 + 300; teta = 0.55; fi = 1.15; aplicar(); };
+function infoPeca(){
+  if (modo !== 'mov') return;
+  const o = sel == null ? null : objs[sel];
+  $('aTit').textContent = o ? o.p.nome : 'Toque numa peça';
+  $('aSub').textContent = o ? `${+(+o.p.W).toFixed(1)} × ${+(+o.p.H).toFixed(1)} × ${+(+o.p.T).toFixed(1)} mm${o.p.chapa ? ' · ' + o.p.chapa : ''}${o.us.length ? ' · ' + o.us.length + ' usinagens' : ''} — toque aqui` : '1 dedo gira · 2 dedos aproximam e movem · 2 toques isolam';
+  if (!o) { $('info').innerHTML = ''; altFolha(); return; }
+  $('info').innerHTML = (o.p.fita ? `<div class="t">Fita</div><div style="font-size:16px">${o.p.fita}</div>` : '') + (o.us.length ? `<div class="t">Usinagens</div>` + o.us.map((u,k) => { const d = u.d;
+    const med = d.f === 'c' ? 'Ø' + +(d.r*2).toFixed(1) : d.f === 'r' ? `${+d.w.toFixed(0)} × ${+d.h.toFixed(0)}` : 'recorte';
+    const fundo = d.t === 'recorte' ? 'passa a chapa' : `fundo ${+d.prof.toFixed(1)}mm`;
+    const pos = d.f === 'p' ? '' : `${d.f === 'c' ? 'centro' : 'canto'} a ${Math.max(0, +d.x).toFixed(0)} · ${Math.max(0, +d.y).toFixed(0)}mm do canto da peça`;
+    return `<div class="us"><span class="n">${k+1}</span><span class="sw" style="background:${(TIPOS[d.t]||TIPOS.furo)[1]}"></span><div>${d.nome}<small>${fundo}${pos ? ' · ' + pos : ''}</small></div><b class="m">${med}</b></div>`; }).join('') : '<div class="t">Peça lisa: sem usinagem</div>');
+  altFolha();
+}
+function aplicar(){
+  if (modo !== 'mov') { pedir(); return; }
+  const f = +$('exp').value, vP = $('vPortas').checked, vF = $('vFundo').checked, tr = $('vTransp').checked;
+  $('bExp').classList.toggle('on', f > 0);
+  objs.forEach((o,k) => { const p = o.p, ehF = /Fundo/.test(p.nome) && p.T < 9;
+    let vis = (vP || !(p.porta || /^(Frente Gaveta|Fr Gaveta)/.test(p.nome))) && (vF || !ehF); if (isolar && sel != null) vis = k === sel;
+    o.g.visible = vis;
+    const off = o.base.clone().sub(Cm).multiplyScalar(f); if (p.porta) off.z += 500 * f; if (p.gav) off.z += 250 * f;
+    o.g.position.copy(isolar ? new THREE.Vector3() : off);
+    o.mesh.material.transparent = tr; o.mesh.material.opacity = tr ? 0.3 : 1; o.mesh.material.depthWrite = !tr;
+    o.us.forEach(u => { const on = ON[u.d.t] !== false; u.mesh.visible = on; u.edge.visible = on; }); });
+  pedir();
+}
+['exp','vPortas','vFundo','vTransp','vRot'].forEach(id => $(id).addEventListener('input', aplicar));
+$('bExp').onclick = () => { const e = $('exp'); e.value = +e.value > 0 ? 0 : 0.6; aplicar(); };
+const vista = (t, f) => { teta = t; fi = f; pedir(); };
+$('bFrente').onclick = () => vista(0, Math.PI/2); $('bIso').onclick = () => vista(0.55, 1.15); $('bLado').onclick = () => vista(Math.PI/2, Math.PI/2);
+$('bPng').onclick = () => { renderer.setPixelRatio(3); tam(); camAt(); renderer.render(scene, cam);
+  const a = document.createElement('a'); a.download = `${D.moveis[mvAtual].nome}${sel != null ? ' - ' + objs[sel].p.nome : ''}.png`; a.href = renderer.domElement.toDataURL('image/png'); a.click(); renderer.setPixelRatio(PR); tam(); };
+// ---- etiquetas na tela
+const lbls = [];
+function rotulos(){
+  lbls.forEach(l => l.remove()); lbls.length = 0; if (!D) return;
+  const ponto = (v, txt, cls) => { const q = v.clone().project(cam); if (q.z > 1 || Math.abs(q.x) > 1.1 || Math.abs(q.y) > 1.1) return; const e = document.createElement('div'); e.className = 'lbl' + (cls ? ' ' + cls : ''); e.textContent = txt; e.style.left = ((q.x + 1) / 2 * innerWidth) + 'px'; e.style.top = ((1 - q.y) / 2 * innerHeight) + 'px'; document.body.appendChild(e); lbls.push(e); };
+  if (modo === 'amb') { ambMov.forEach(a => { if (!a.grupo.visible) return; const bb = new THREE.Box3().setFromObject(a.grupo); const c = bb.getCenter(new THREE.Vector3()); c.y = bb.max.y; ponto(c, a.cat === 'arremate' ? a.mv.nome : `${a.mv.num || a.i + 1} · ${a.mv.nome}`, 'mv'); }); return; }
+  if (sel == null || !$('vRot').checked) return; const o = objs[sel]; if (!o.g.visible) return;
+  const raiz = cacheMov[mvAtual].raiz;
+  o.us.forEach((u,k) => { if (!u.mesh.visible) return; const d = u.d; ponto(raiz.localToWorld(u.pos.clone()).add(o.g.position), `${k+1} · ${d.f === 'c' ? 'Ø' + +(d.r*2).toFixed(0) : d.f === 'r' ? +d.w.toFixed(0) + '×' + +d.h.toFixed(0) : 'recorte'}`); });
+}
+// ---- abrir: lista de projetos ou o projeto do QR
+async function lista(){
+  if (NUVEM) { $('msg').style.opacity = 0; const L = $('lista'); L.style.display = 'block'; L.innerHTML = '<h1>📱 MDFlow 3D</h1><p>Aponte a câmera do celular pro QR do projeto (no adesivo) pra abrir o 3D dos móveis.</p>'; return; }
+  $('msg').style.opacity = 0; const L = $('lista'); L.style.display = 'block';
+  try { const r = await (await fetch('/api/lista', { cache: 'no-store' })).json();
+    L.innerHTML = `<h1>📱 Projetos da fábrica</h1>` + ((r.projetos || []).map(p => `<button class="mov" onclick="location.hash='${p.id}'; location.reload()"><span class="nb">3D</span><span>${p.id.replace(/_/g, ' ')}<small>enviado em ${p.data}</small></span></button>`).join('') || '<p>Nenhum projeto ainda. No MDFlow: Ambiente → "QR do 3D pro celular".</p>');
+  } catch (e) { L.innerHTML = '<h1>Sem conexão com o servidor</h1><p>Confira se o celular está no Wi-Fi da fábrica e se o computador do MDFlow está ligado.</p>'; }
+}
+async function carregarProjeto(id){
+  if (!NUVEM) {
+    const r = await fetch('/p/' + encodeURIComponent(id) + '.json', { cache: 'no-store' });
+    if (!r.ok) throw new Error(r.status === 404 ? 'Esse projeto não está no servidor (mande de novo pelo MDFlow).' : 'Erro ' + r.status);
+    return await r.json();
+  }
+  // 1º: arquivo do gist pela CDN (sem limite de acessos); 2º: pela API do GitHub
+  const dono = location.hostname.split('.')[0], idS = encodeURIComponent(id);
+  try { const r = await fetch(`https://gist.githubusercontent.com/${dono}/${idS}/raw/projeto.json?t=${Date.now()}`, { cache: 'no-store' }); if (r.ok) return await r.json(); } catch (e) {}
+  const r = await fetch(`https://api.github.com/gists/${idS}`, { cache: 'no-store', headers: { Accept: 'application/vnd.github+json' } });
+  if (r.status === 404) throw new Error('Esse projeto não foi encontrado (mande de novo pelo MDFlow).');
+  if (!r.ok) throw new Error('Erro ' + r.status + ' ao abrir o projeto.');
+  const j = await r.json(), f = (j.files || {})['projeto.json'] || Object.values(j.files || {})[0];
+  if (!f) throw new Error('Projeto vazio.');
+  return JSON.parse(f.truncated ? await (await fetch(f.raw_url, { cache: 'no-store' })).text() : f.content);
+}
+async function iniciar(){
+  const h = decodeURIComponent(location.hash.slice(1)), [id, mvI] = h.split('/');
+  if (!id) return lista();
+  try { D = await carregarProjeto(id); D.id = id; }
+  catch (e) { msg((e.message || 'Não consegui abrir o projeto.') + '<br><br>' + DICA_REDE); return; }
+  document.title = D.projeto + ' · 3D'; msg('', 0); $('msg').style.opacity = 0;
+  montarAmbiente(); tam();
+  if (mvI !== undefined && D.moveis[+mvI]) { history.replaceState(null, '', '#' + id); abrirMovel(+mvI); } else { verAmbiente(); msg('1 dedo: girar · 2 dedos: aproximar<br>Toque no móvel pra ver as peças', 3.5); }
+}
+altFolha(); tam(); iniciar();
+})();
+</script></body></html>
