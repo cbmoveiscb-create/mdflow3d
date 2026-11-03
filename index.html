@@ -34,6 +34,7 @@ input[type=range]{width:100%;height:40px}
 .us .sw{width:14px;height:14px;border-radius:3px;flex:none}.us div{flex:1}.us small{display:block;color:var(--mu);font-size:13px}.us b.m{font-size:17px;white-space:nowrap}
 .leg label{display:flex;align-items:center;gap:12px;font-size:16px;padding:9px 0}.leg i{width:20px;height:20px;border-radius:4px;display:inline-block;border:1px solid #0003}.leg input{width:24px;height:24px}
 .lbl{position:fixed;transform:translate(-50%,-120%);background:#0f172aee;color:#fff;font:800 13px/1.2 system-ui,Arial;padding:4px 8px;border-radius:7px;white-space:nowrap;pointer-events:none;border:1px solid #fff6;z-index:3}
+.lbl.pn{background:#fde68a;color:#111;border-color:#a16207;font-size:12px;padding:2px 6px;transform:translate(-50%,-50%);border-radius:10px}.lbl.pn.sel{background:#0284c7;color:#fff}
 .lbl.mv{background:#0284c7ee;font-size:14px;padding:6px 10px}
 #msg{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:#0f172add;color:#fff;padding:14px 18px;border-radius:12px;font-size:15px;text-align:center;pointer-events:none;transition:opacity .5s;z-index:9;max-width:86vw}
 #filtros{position:fixed;left:0;right:0;top:calc(env(safe-area-inset-top) + 66px);display:none;gap:6px;padding:0 10px;z-index:5;overflow-x:auto;scrollbar-width:none}
@@ -52,13 +53,15 @@ input[type=range]{width:100%;height:40px}
  <div id="corpo">
   <div id="pAmb"></div>
   <div id="pMov" style="display:none"><div id="obsMov"></div>
-   <div class="abas"><button class="on" data-p="pPeca">Peça</button><button data-p="pVista">Vista</button></div>
+   <div class="abas"><button class="on" data-p="pPeca">Peça</button><button data-p="pVista">Vista</button><button data-p="pFerr">Ferragens</button></div>
    <div class="pag on" id="pPeca"><select id="selP"></select><div class="bts"><button id="bIsolar">Isolar a peça</button><button id="bPng">Salvar imagem</button></div><div id="info"></div></div>
+   <div class="pag" id="pFerr"></div>
    <div class="pag" id="pVista">
     <div class="t">Explodir</div><input type="range" id="exp" min="0" max="1" step="0.05" value="0">
     <label class="ck"><input type="checkbox" id="vPortas" checked> Portas e frentes</label>
     <label class="ck"><input type="checkbox" id="vFundo" checked> Fundos 6mm</label>
     <label class="ck"><input type="checkbox" id="vTransp"> Peças transparentes (ver o fundo dos furos)</label>
+    <label class="ck"><input type="checkbox" id="vNum" checked> Número das peças (o mesmo da etiqueta)</label>
     <label class="ck"><input type="checkbox" id="vRot" checked> Números em cima dos furos</label>
     <div class="t">Usinagens</div><div class="leg" id="leg"></div>
    </div>
@@ -226,7 +229,9 @@ function abrirMovel(i, peloVoltar){
   grAmb.visible = false; grMov.visible = true; $('voltar').style.display = ''; $('filtros').style.display = 'none'; $('obsMov').textContent = mv.obs || ''; $('bExp').style.display = ''; $('barra').style.display = 'flex';
   $('pAmb').style.display = 'none'; $('pMov').style.display = '';
   $('tit').innerHTML = `${mv.num && mv.num !== mv.nome.replace(/^Arremate /, '') ? mv.num + ' · ' : ''}${mv.nome}<small>${Math.round(mv.L)} × ${Math.round(mv.A)} × ${Math.round(mv.P)} mm · ${mv.pecas.length} peças · ${mv.pecas.reduce((a,p)=>a+p.us.length,0)} usinagens</small>`;
-  $('selP').innerHTML = '<option value="">— escolha uma peça —</option>' + objs.map((o,k)=>`<option value="${k}">${o.p.nome}${o.us.length ? ` · ${o.us.length} usin.` : ''}</option>`).join('');
+  $('selP').innerHTML = '<option value="">— escolha uma peça —</option>' + objs.map((o,k)=>[o,k]).sort((a,b)=>(a[0].p.n||999)-(b[0].p.n||999)).map(([o,k])=>`<option value="${k}">${o.p.n ? o.p.n + ' · ' : ''}${o.p.nome}${o.us.length ? ` · ${o.us.length} usin.` : ''}</option>`).join('');
+  $('pFerr').innerHTML = ((mv.ferragens || []).length ? '<div class="t">Ferragens deste móvel</div>' + mv.ferragens.map(f => `<label class="ck"><input type="checkbox"> <span><b>${f.qtd}×</b> ${f.item}${f.obs ? ` <small style="color:var(--mu)">(${f.obs})</small>` : ''}</span></label>`).join('') : '<p style="color:var(--mu)">Sem ferragens.</p>')
+    + ((mv.soltas || []).length ? '<div class="t">Peças que não aparecem no 3D</div>' + mv.soltas.map(q => `<div class="us"><span class="n">${q.n || '·'}</span><div>${q.nome}<small>${q.onde || ''}</small></div><b class="m">${q.med}</b></div>`).join('') : '');
   $('leg').innerHTML = ''; Object.entries(TIPOS).forEach(([k,[n,c]]) => { const q = objs.reduce((a,o)=>a+o.us.filter(u=>u.d.t===k).length,0); if (!q) return;
     const l = document.createElement('label'); l.innerHTML = `<input type="checkbox" ${ON[k] ? 'checked' : ''}><i style="background:${c}"></i>${n} <span style="color:var(--mu)">(${q})</span>`; l.querySelector('input').onchange = ev => { ON[k] = ev.target.checked; aplicar(); }; $('leg').appendChild(l); });
   sel = null; isolar = false; $('exp').value = 0; teta = 0.55; fi = 1.15; alvo.set(0,0,0); dist = Math.max(mv.L, mv.A, mv.P) * 2.1 + 300;
@@ -261,10 +266,10 @@ $('bTodas').onclick = () => { isolar = false; const mv = D.moveis[mvAtual]; alvo
 function infoPeca(){
   if (modo !== 'mov') return;
   const o = sel == null ? null : objs[sel];
-  $('aTit').textContent = o ? o.p.nome : 'Toque numa peça';
+  $('aTit').textContent = o ? `${o.p.n ? 'Peça ' + o.p.n + ' · ' : ''}${o.p.nome}` : 'Toque numa peça';
   $('aSub').textContent = o ? `${+(+o.p.W).toFixed(1)} × ${+(+o.p.H).toFixed(1)} × ${+(+o.p.T).toFixed(1)} mm${o.p.chapa ? ' · ' + o.p.chapa : ''}${o.us.length ? ' · ' + o.us.length + ' usinagens' : ''} — toque aqui` : '1 dedo gira · 2 dedos aproximam e movem · 2 toques isolam';
   if (!o) { $('info').innerHTML = ''; altFolha(); return; }
-  $('info').innerHTML = (o.p.fita ? `<div class="t">Fita</div><div style="font-size:16px">${o.p.fita}</div>` : '') + (o.us.length ? `<div class="t">Usinagens</div>` + o.us.map((u,k) => { const d = u.d;
+  $('info').innerHTML = (o.p.onde ? `<div class="t">Onde vai</div><div style="font-size:16px">${o.p.onde}</div>` : '') + (o.p.fita ? `<div class="t">Fita</div><div style="font-size:16px">${o.p.fita}</div>` : '') + (o.us.length ? `<div class="t">Usinagens</div>` + o.us.map((u,k) => { const d = u.d;
     const med = d.f === 'c' ? 'Ø' + +(d.r*2).toFixed(1) : d.f === 'r' ? `${+d.w.toFixed(0)} × ${+d.h.toFixed(0)}` : 'recorte';
     const fundo = d.t === 'recorte' ? 'passa a chapa' : `fundo ${+d.prof.toFixed(1)}mm`;
     const pos = d.f === 'p' ? '' : `${d.f === 'c' ? 'centro' : 'canto'} a ${Math.max(0, +d.x).toFixed(0)} · ${Math.max(0, +d.y).toFixed(0)}mm do canto da peça`;
@@ -284,7 +289,7 @@ function aplicar(){
     o.us.forEach(u => { const on = ON[u.d.t] !== false; u.mesh.visible = on; u.edge.visible = on; }); });
   pedir();
 }
-['exp','vPortas','vFundo','vTransp','vRot'].forEach(id => $(id).addEventListener('input', aplicar));
+['exp','vPortas','vFundo','vTransp','vRot','vNum'].forEach(id => $(id).addEventListener('input', aplicar));
 $('bExp').onclick = () => { const e = $('exp'); e.value = +e.value > 0 ? 0 : 0.6; aplicar(); };
 const vista = (t, f) => { teta = t; fi = f; pedir(); };
 $('bFrente').onclick = () => vista(0, Math.PI/2); $('bIso').onclick = () => vista(0.55, 1.15); $('bLado').onclick = () => vista(Math.PI/2, Math.PI/2);
@@ -296,8 +301,9 @@ function rotulos(){
   lbls.forEach(l => l.remove()); lbls.length = 0; if (!D) return;
   const ponto = (v, txt, cls) => { const q = v.clone().project(cam); if (q.z > 1 || Math.abs(q.x) > 1.1 || Math.abs(q.y) > 1.1) return; const e = document.createElement('div'); e.className = 'lbl' + (cls ? ' ' + cls : ''); e.textContent = txt; e.style.left = ((q.x + 1) / 2 * innerWidth) + 'px'; e.style.top = ((1 - q.y) / 2 * innerHeight) + 'px'; document.body.appendChild(e); lbls.push(e); };
   if (modo === 'amb') { ambMov.forEach(a => { if (!a.grupo.visible) return; const bb = new THREE.Box3().setFromObject(a.grupo); const c = bb.getCenter(new THREE.Vector3()); c.y = bb.max.y; ponto(c, a.cat === 'arremate' ? a.mv.nome : `${a.mv.num || a.i + 1} · ${a.mv.nome}`, 'mv'); }); return; }
-  if (sel == null || !$('vRot').checked) return; const o = objs[sel]; if (!o.g.visible) return;
   const raiz = cacheMov[mvAtual].raiz;
+  if ($('vNum').checked) objs.forEach((o, k) => { if (!o.p.n || !o.g.visible || !o.mesh.visible || (sel != null && k !== sel && isolar)) return; ponto(raiz.localToWorld(o.base.clone()).add(o.g.position), String(o.p.n), 'pn' + (k === sel ? ' sel' : '')); });
+  if (sel == null || !$('vRot').checked) return; const o = objs[sel]; if (!o.g.visible) return;
   o.us.forEach((u,k) => { if (!u.mesh.visible) return; const d = u.d; ponto(raiz.localToWorld(u.pos.clone()).add(o.g.position), `${k+1} · ${d.f === 'c' ? 'Ø' + +(d.r*2).toFixed(0) : d.f === 'r' ? +d.w.toFixed(0) + '×' + +d.h.toFixed(0) : 'recorte'}`); });
 }
 // ---- abrir: lista de projetos ou o projeto do QR
