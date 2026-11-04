@@ -213,7 +213,7 @@ function listaAmb(){
   $('pAmb').innerHTML = CATS.map(([c, nome]) => { const it = D.moveis.map((mv, i) => [mv, i]).filter(([mv]) => catDe(mv) === c).sort((x, y) => num(x[0]) - num(y[0])); if (!it.length) return '';
     return `<div class="t">${nome}${OCULTO[c] ? ' · escondidos' : ''}</div>` + it.map(([mv, i]) => `<button class="mov${OCULTO[c] ? ' oculto' : ''}" data-i="${i}"><span class="nb ${c}">${mv.num || i + 1}</span><span>${mv.nome}<small>${c === 'arremate' ? (mv.obs || '') : `${Math.round(mv.L)} × ${Math.round(mv.A)} × ${Math.round(mv.P)} mm · ${mv.pecas.length} peças`}</small></span></button>`).join(''); }).join('');
   const fitasProj = somaFitas(D.moveis.flatMap(mv => mv.fitas || []));
-  if (fitasProj.length) $('pAmb').insertAdjacentHTML('beforeend', htmlFitas(fitasProj, 'Fita de borda do projeto'));
+  if (fitasProj.length) $('pAmb').insertAdjacentHTML('afterbegin', htmlFitas(fitasProj, 'Fita de borda do projeto'));
   $('pAmb').querySelectorAll('.mov').forEach(b => b.onclick = () => abrirMovel(+b.dataset.i));
 }
 function filtrosUI(){
@@ -229,7 +229,8 @@ function contagem(){ const n = c => D.moveis.filter(mv => catDe(mv) === c).lengt
 function verAmbiente(){
   modo = 'amb'; grAmb.visible = true; grMov.visible = false; $('voltar').style.display = 'none'; $('filtros').style.display = $('filtros').innerHTML ? 'flex' : 'none'; $('bExp').style.display = 'none'; $('barra').style.display = 'none';
   $('pAmb').style.display = ''; $('pMov').style.display = 'none';
-  $('tit').innerHTML = `${D.projeto}${D.comodo ? ' · ' + D.comodo : ''}<small>${contagem()} · toque pra abrir</small>`;
+  const fT = D.moveis.reduce((a, mv) => a + (mv.fitas || []).reduce((b, f) => b + (+f.m || 0), 0), 0);
+  $('tit').innerHTML = `${D.projeto}${D.comodo ? ' · ' + D.comodo : ''}<small>${contagem()}${fT ? ' · fita ' + (Math.round(fT * 10) / 10).toString().replace('.', ',') + ' m' : ''} · toque pra abrir</small>`;
   $('aTit').textContent = 'Lista do ambiente'; $('aSub').textContent = 'Arraste pra cima ou toque aqui';
   teta = 0.35; fi = 1.05; const bb = new THREE.Box3(); ambMov.forEach(a => bb.expandByObject(a.grupo)); if (!bb.isEmpty()) { bb.getCenter(alvo); const sz = bb.getSize(new THREE.Vector3()); dist = Math.max(sz.x, sz.y, sz.z) * 1.5 + 400; } pedir(); altFolha();
 }
@@ -243,10 +244,9 @@ function abrirMovel(i, peloVoltar){
   const r = cacheMov[i]; grMov.add(r.raiz); objs = r.objs; Cm.set(mv.L/2, mv.A/2, mv.P/2);
   grAmb.visible = false; grMov.visible = true; $('voltar').style.display = ''; $('filtros').style.display = 'none'; $('obsMov').textContent = mv.obs || ''; $('bExp').style.display = ''; $('barra').style.display = 'flex';
   $('pAmb').style.display = 'none'; $('pMov').style.display = '';
-  $('tit').innerHTML = `${mv.num && mv.num !== mv.nome.replace(/^Arremate /, '') ? mv.num + ' · ' : ''}${mv.nome}<small>${Math.round(mv.L)} × ${Math.round(mv.A)} × ${Math.round(mv.P)} mm · ${mv.pecas.length} peças · ${mv.pecas.reduce((a,p)=>a+p.us.length,0)} usinagens</small>`;
+  $('tit').innerHTML = `${mv.num && mv.num !== mv.nome.replace(/^Arremate /, '') ? mv.num + ' · ' : ''}${mv.nome}<small>${Math.round(mv.L)} × ${Math.round(mv.A)} × ${Math.round(mv.P)} mm · ${mv.pecas.length} peças · ${mv.pecas.reduce((a,p)=>a+p.us.length,0)} usinagens${(mv.fitas || []).length ? ' · fita ' + (Math.round((mv.fitas || []).reduce((a, f) => a + (+f.m || 0), 0) * 10) / 10).toString().replace('.', ',') + ' m' : ''}</small>`;
   $('selP').innerHTML = '<option value="">— escolha uma peça —</option>' + objs.map((o,k)=>[o,k]).sort((a,b)=>(a[0].p.n||999)-(b[0].p.n||999)).map(([o,k])=>`<option value="${k}">${o.p.n ? o.p.n + ' · ' : ''}${o.p.nome}${o.us.length ? ` · ${o.us.length} usin.` : ''}</option>`).join('');
-  $('pFerr').innerHTML = ((mv.ferragens || []).length ? '<div class="t">Ferragens deste móvel</div>' + mv.ferragens.map(f => `<label class="ck"><input type="checkbox"> <span><b>${f.qtd}×</b> ${f.item}${f.obs ? ` <small style="color:var(--mu)">(${f.obs})</small>` : ''}</span></label>`).join('') : '<p style="color:var(--mu)">Sem ferragens.</p>')
-    + htmlFitas(somaFitas(mv.fitas || []), 'Fita de borda deste móvel')
+  $('pFerr').innerHTML = htmlFitas(somaFitas(mv.fitas || []), 'Fita de borda deste móvel') + ((mv.ferragens || []).length ? '<div class="t">Ferragens deste móvel</div>' + mv.ferragens.map(f => `<label class="ck"><input type="checkbox"> <span><b>${f.qtd}×</b> ${f.item}${f.obs ? ` <small style="color:var(--mu)">(${f.obs})</small>` : ''}</span></label>`).join('') : '<p style="color:var(--mu)">Sem ferragens.</p>')
     + ((mv.soltas || []).length ? '<div class="t">Peças que não aparecem no 3D</div>' + mv.soltas.map(q => `<div class="us"><span class="n">${q.n || '·'}</span><div>${q.nome}<small>${q.onde || ''}</small></div><b class="m">${q.med}</b></div>`).join('') : '');
   $('leg').innerHTML = ''; Object.entries(TIPOS).forEach(([k,[n,c]]) => { const q = objs.reduce((a,o)=>a+o.us.filter(u=>u.d.t===k).length,0); if (!q) return;
     const l = document.createElement('label'); l.innerHTML = `<input type="checkbox" ${ON[k] ? 'checked' : ''}><i style="background:${c}"></i>${n} <span style="color:var(--mu)">(${q})</span>`; l.querySelector('input').onchange = ev => { ON[k] = ev.target.checked; aplicar(); }; $('leg').appendChild(l); });
@@ -266,9 +266,12 @@ function tocar(e, duplo){
   raio(e);
   if (modo === 'amb') { const h = ray.intersectObjects(grAmb.children, true).find(x => x.object.type === 'Mesh' && visivel(x.object)); if (!h) return;
     let o = h.object; while (o && o.parent !== grAmb) o = o.parent; if (o && o.userData.i != null) abrirMovel(o.userData.i); return; }
-  const h = ray.intersectObjects(objs.filter(o => o.g.visible).map(o => o.mesh), false)[0];
-  if (!h) { if (!duplo && !isolar) escolher(null, null); return; }
-  escolher(objs.findIndex(o => o.mesh === h.object), duplo ? true : null);
+  const hs = ray.intersectObjects(objs.filter(o => o.g.visible).map(o => o.mesh), false), ids = [];
+  hs.forEach(x => { const k = objs.findIndex(o => o.mesh === x.object); if (k >= 0 && !ids.includes(k)) ids.push(k); });
+  if (!ids.length) { if (!duplo && !isolar) escolher(null, null); return; }
+  // tocar de novo na peça já escolhida pega a que está atrás dela (ex.: travessa atrás da faixa de cima)
+  let k = ids[0]; if (!duplo && ids.length > 1 && k === sel) k = ids[1];
+  escolher(k, duplo ? true : null);
 }
 function escolher(i, iso){
   sel = i; $('selP').value = i == null ? '' : String(i);
@@ -285,7 +288,7 @@ function infoPeca(){
   if (modo !== 'mov') return;
   const o = sel == null ? null : objs[sel];
   $('aTit').textContent = o ? `${o.p.n ? 'Peça ' + o.p.n + ' · ' : ''}${o.p.nome}` : 'Toque numa peça';
-  $('aSub').textContent = o ? `${+(+o.p.W).toFixed(1)} × ${+(+o.p.H).toFixed(1)} × ${+(+o.p.T).toFixed(1)} mm${o.p.chapa ? ' · ' + o.p.chapa : ''}${o.us.length ? ' · ' + o.us.length + ' usinagens' : ''} — arraste a peça pra tirar do lugar` : '1 dedo gira · 2 dedos aproximam e movem · 2 toques isolam · toque numa peça e arraste ela';
+  $('aSub').textContent = o ? `${+(+o.p.W).toFixed(1)} × ${+(+o.p.H).toFixed(1)} × ${+(+o.p.T).toFixed(1)} mm${o.p.chapa ? ' · ' + o.p.chapa : ''}${o.us.length ? ' · ' + o.us.length + ' usinagens' : ''} — arraste a peça pra tirar do lugar` : '1 dedo gira · 2 dedos aproximam e movem · 2 toques isolam · toque numa peça e arraste ela · toque de novo pega a de trás';
   if (!o) { $('info').innerHTML = ''; altFolha(); return; }
   $('info').innerHTML = (o.p.onde ? `<div class="t">Onde vai</div><div style="font-size:16px">${o.p.onde}</div>` : '') + (o.p.fita ? `<div class="t">Fita</div><div style="font-size:16px">${o.p.fita}</div>` : '') + (o.us.length ? `<div class="t">Usinagens</div>` + o.us.map((u,k) => { const d = u.d;
     const med = d.f === 'c' ? 'Ø' + +(d.r*2).toFixed(1) : d.f === 'r' ? `${+d.w.toFixed(0)} × ${+d.h.toFixed(0)}` : 'recorte';
