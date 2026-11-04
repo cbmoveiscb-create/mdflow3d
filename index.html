@@ -32,6 +32,7 @@ input[type=range]{width:100%;height:40px}
 .us{display:flex;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--bd);font-size:15px}
 .us .n{width:28px;height:28px;border-radius:50%;background:#0f172a;color:#fff;font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center;flex:none}
 .us .sw{width:14px;height:14px;border-radius:3px;flex:none}.us div{flex:1}.us small{display:block;color:var(--mu);font-size:13px}.us b.m{font-size:17px;white-space:nowrap}
+.fit{display:flex;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--bd);font-size:15px}.fit .sw{width:16px;height:16px;border-radius:3px;flex:none;border:1px solid #0003}.fit div{flex:1}.fit small{display:block;color:var(--mu);font-size:13px}.fit b{font-size:17px;white-space:nowrap}
 .leg label{display:flex;align-items:center;gap:12px;font-size:16px;padding:9px 0}.leg i{width:20px;height:20px;border-radius:4px;display:inline-block;border:1px solid #0003}.leg input{width:24px;height:24px}
 .lbl{position:fixed;transform:translate(-50%,-120%);background:#0f172aee;color:#fff;font:800 13px/1.2 system-ui,Arial;padding:4px 8px;border-radius:7px;white-space:nowrap;pointer-events:none;border:1px solid #fff6;z-index:3}
 .lbl.pn{background:#fde68a;color:#111;border-color:#a16207;font-size:12px;padding:2px 6px;transform:translate(-50%,-50%);border-radius:10px}.lbl.pn.sel{background:#0284c7;color:#fff}
@@ -54,7 +55,7 @@ input[type=range]{width:100%;height:40px}
   <div id="pAmb"></div>
   <div id="pMov" style="display:none"><div id="obsMov"></div>
    <div class="abas"><button class="on" data-p="pPeca">Peça</button><button data-p="pVista">Vista</button><button data-p="pFerr">Ferragens</button></div>
-   <div class="pag on" id="pPeca"><select id="selP"></select><div class="bts"><button id="bIsolar">Isolar a peça</button><button id="bPng">Salvar imagem</button></div><div id="info"></div></div>
+   <div class="pag on" id="pPeca"><select id="selP"></select><div class="bts"><button id="bIsolar">Isolar a peça</button><button id="bPng">Salvar imagem</button><button id="bVoltaP">↩ Peça no lugar</button><button id="bVoltaT">↩ Todas no lugar</button></div><div id="info"></div></div>
    <div class="pag" id="pFerr"></div>
    <div class="pag" id="pVista">
     <div class="t">Explodir</div><input type="range" id="exp" min="0" max="1" step="0.05" value="0">
@@ -136,16 +137,23 @@ function enquadrar(obj, fator){ const bb = new THREE.Box3().setFromObject(obj); 
 addEventListener('resize', () => { altFolha(); tam(); });
 const el = renderer.domElement, dedos = new Map(); let ini = null, moveu = false, ultToque = 0;
 el.addEventListener('contextmenu', e => e.preventDefault());
-el.addEventListener('pointerdown', e => { el.setPointerCapture(e.pointerId); dedos.set(e.pointerId, { x: e.clientX, y: e.clientY }); moveu = false; ini = pinca(); });
+// Arrastar a peça selecionada (1 dedo começando em cima dela): ela sai do lugar pra ver melhor
+let puxa = null; const plano = new THREE.Plane(), pTmp = new THREE.Vector3();
+el.addEventListener('pointerdown', e => { el.setPointerCapture(e.pointerId); dedos.set(e.pointerId, { x: e.clientX, y: e.clientY }); moveu = false; ini = pinca();
+  puxa = null;
+  if (modo === 'mov' && dedos.size === 1 && sel != null && objs[sel] && objs[sel].g.visible) { raio(e); const h = ray.intersectObject(objs[sel].mesh, false)[0];
+    if (h) { const n = new THREE.Vector3(); cam.getWorldDirection(n); plano.setFromNormalAndCoplanarPoint(n, h.point); const o = objs[sel]; o.drag = o.drag || new THREE.Vector3(); puxa = { o, ini: h.point.clone(), d0: o.drag.clone() }; } }
+  if (dedos.size > 1) puxa = null; });
 function pinca(){ const p = [...dedos.values()]; if (p.length < 2) return null; return { d: Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y), mx: (p[0].x + p[1].x)/2, my: (p[0].y + p[1].y)/2 }; }
 function mover(dx, dy){ const k = dist / 700, dir = new THREE.Vector3(); cam.getWorldDirection(dir); const lado = new THREE.Vector3().crossVectors(dir, cam.up).normalize(), up = new THREE.Vector3().crossVectors(lado, dir).normalize(); alvo.add(lado.multiplyScalar(-dx*k)).add(up.multiplyScalar(dy*k)); }
 el.addEventListener('pointermove', e => { const a = dedos.get(e.pointerId); if (!a) return; const dx = e.clientX - a.x, dy = e.clientY - a.y; dedos.set(e.pointerId, { x: e.clientX, y: e.clientY });
   if (Math.abs(dx) + Math.abs(dy) > 2) moveu = true;
+  if (puxa && dedos.size === 1) { raio(e); if (ray.ray.intersectPlane(plano, pTmp)) { puxa.o.drag.copy(puxa.d0).add(pTmp.clone().sub(puxa.ini)); aplicar(); } return; }
   if (dedos.size >= 2) { const p = pinca(); if (ini && p) { dist = Math.max(80, Math.min(40000, dist * ini.d / Math.max(1, p.d))); mover(p.mx - ini.mx, p.my - ini.my); ini = p; } }
   else if (e.buttons === 2 || e.shiftKey) mover(dx, dy);
   else { teta -= dx * 0.009; fi = Math.max(0.05, Math.min(Math.PI - 0.05, fi - dy * 0.009)); }
   pedir(); });
-el.addEventListener('pointerup', e => { const um = dedos.size === 1; dedos.delete(e.pointerId); ini = pinca(); if (um && !moveu) { const ag = Date.now(); if (ag - ultToque < 320) { tocar(e, true); ultToque = 0; } else { ultToque = ag; tocar(e, false); } } });
+el.addEventListener('pointerup', e => { const um = dedos.size === 1; dedos.delete(e.pointerId); if (puxa) { const mv0 = moveu; puxa = null; if (mv0) { ini = pinca(); return; } } ini = pinca(); if (um && !moveu) { const ag = Date.now(); if (ag - ultToque < 320) { tocar(e, true); ultToque = 0; } else { ultToque = ag; tocar(e, false); } } });
 el.addEventListener('pointercancel', e => { dedos.delete(e.pointerId); ini = pinca(); });
 el.addEventListener('wheel', e => { e.preventDefault(); dist = Math.max(80, Math.min(40000, dist * (e.deltaY > 0 ? 1.12 : 0.89))); pedir(); }, { passive:false });
 const ray = new THREE.Raycaster();
@@ -195,10 +203,17 @@ function montarAmbiente(){
 }
 const CATS = [['movel', 'Móveis'], ['painel', 'Painéis'], ['arremate', 'Arremates']], OCULTO = {};
 function catDe(mv){ return mv.cat || 'movel'; }
+// ---- fita de borda (metragem)
+function somaFitas(lista){ const m = new Map(); lista.forEach(f => { const k = f.chapa + '|' + f.esp; const o = m.get(k) || { chapa: f.chapa, cor: f.cor, esp: f.esp, m: 0 }; o.m += +f.m || 0; m.set(k, o); }); return [...m.values()].sort((a, b) => b.m - a.m); }
+function htmlFitas(lista, tit){ if (!lista.length) return ''; const tot = lista.reduce((a, f) => a + f.m, 0), n = v => (Math.round(v * 10) / 10).toFixed(1).replace('.', ',');
+  return `<div class="t">${tit}</div>` + lista.map(f => `<div class="fit"><span class="sw" style="background:${f.cor}"></span><div>${f.chapa}<small>fita pra chapa de ${f.esp}mm · com 10% de sobra: ${n(f.m * 1.1)} m</small></div><b>${n(f.m)} m</b></div>`).join('')
+    + (lista.length > 1 ? `<div class="fit"><span class="sw" style="background:transparent;border:0"></span><div><b style="font-size:15px">Total</b><small>com 10% de sobra: ${n(tot * 1.1)} m</small></div><b>${n(tot)} m</b></div>` : ''); }
 function listaAmb(){
   const num = mv => { const n = parseFloat(String(mv.num || '').replace(/[^0-9.]/g, '')); return isNaN(n) ? 999 : n; };
   $('pAmb').innerHTML = CATS.map(([c, nome]) => { const it = D.moveis.map((mv, i) => [mv, i]).filter(([mv]) => catDe(mv) === c).sort((x, y) => num(x[0]) - num(y[0])); if (!it.length) return '';
     return `<div class="t">${nome}${OCULTO[c] ? ' · escondidos' : ''}</div>` + it.map(([mv, i]) => `<button class="mov${OCULTO[c] ? ' oculto' : ''}" data-i="${i}"><span class="nb ${c}">${mv.num || i + 1}</span><span>${mv.nome}<small>${c === 'arremate' ? (mv.obs || '') : `${Math.round(mv.L)} × ${Math.round(mv.A)} × ${Math.round(mv.P)} mm · ${mv.pecas.length} peças`}</small></span></button>`).join(''); }).join('');
+  const fitasProj = somaFitas(D.moveis.flatMap(mv => mv.fitas || []));
+  if (fitasProj.length) $('pAmb').insertAdjacentHTML('beforeend', htmlFitas(fitasProj, 'Fita de borda do projeto'));
   $('pAmb').querySelectorAll('.mov').forEach(b => b.onclick = () => abrirMovel(+b.dataset.i));
 }
 function filtrosUI(){
@@ -231,6 +246,7 @@ function abrirMovel(i, peloVoltar){
   $('tit').innerHTML = `${mv.num && mv.num !== mv.nome.replace(/^Arremate /, '') ? mv.num + ' · ' : ''}${mv.nome}<small>${Math.round(mv.L)} × ${Math.round(mv.A)} × ${Math.round(mv.P)} mm · ${mv.pecas.length} peças · ${mv.pecas.reduce((a,p)=>a+p.us.length,0)} usinagens</small>`;
   $('selP').innerHTML = '<option value="">— escolha uma peça —</option>' + objs.map((o,k)=>[o,k]).sort((a,b)=>(a[0].p.n||999)-(b[0].p.n||999)).map(([o,k])=>`<option value="${k}">${o.p.n ? o.p.n + ' · ' : ''}${o.p.nome}${o.us.length ? ` · ${o.us.length} usin.` : ''}</option>`).join('');
   $('pFerr').innerHTML = ((mv.ferragens || []).length ? '<div class="t">Ferragens deste móvel</div>' + mv.ferragens.map(f => `<label class="ck"><input type="checkbox"> <span><b>${f.qtd}×</b> ${f.item}${f.obs ? ` <small style="color:var(--mu)">(${f.obs})</small>` : ''}</span></label>`).join('') : '<p style="color:var(--mu)">Sem ferragens.</p>')
+    + htmlFitas(somaFitas(mv.fitas || []), 'Fita de borda deste móvel')
     + ((mv.soltas || []).length ? '<div class="t">Peças que não aparecem no 3D</div>' + mv.soltas.map(q => `<div class="us"><span class="n">${q.n || '·'}</span><div>${q.nome}<small>${q.onde || ''}</small></div><b class="m">${q.med}</b></div>`).join('') : '');
   $('leg').innerHTML = ''; Object.entries(TIPOS).forEach(([k,[n,c]]) => { const q = objs.reduce((a,o)=>a+o.us.filter(u=>u.d.t===k).length,0); if (!q) return;
     const l = document.createElement('label'); l.innerHTML = `<input type="checkbox" ${ON[k] ? 'checked' : ''}><i style="background:${c}"></i>${n} <span style="color:var(--mu)">(${q})</span>`; l.querySelector('input').onchange = ev => { ON[k] = ev.target.checked; aplicar(); }; $('leg').appendChild(l); });
@@ -262,12 +278,14 @@ function escolher(i, iso){
   aplicar(); infoPeca();
 }
 $('bIsolar').onclick = () => { if (sel != null) escolher(sel, true); };
-$('bTodas').onclick = () => { isolar = false; const mv = D.moveis[mvAtual]; alvo.set(0,0,0); dist = Math.max(mv.L, mv.A, mv.P) * 2.1 + 300; teta = 0.55; fi = 1.15; aplicar(); };
+$('bVoltaP').onclick = () => { if (sel != null && objs[sel].drag) { objs[sel].drag.set(0, 0, 0); aplicar(); } };
+$('bVoltaT').onclick = () => { objs.forEach(o => { if (o.drag) o.drag.set(0, 0, 0); }); aplicar(); };
+$('bTodas').onclick = () => { objs.forEach(o => { if (o.drag) o.drag.set(0, 0, 0); }); isolar = false; const mv = D.moveis[mvAtual]; alvo.set(0,0,0); dist = Math.max(mv.L, mv.A, mv.P) * 2.1 + 300; teta = 0.55; fi = 1.15; aplicar(); };
 function infoPeca(){
   if (modo !== 'mov') return;
   const o = sel == null ? null : objs[sel];
   $('aTit').textContent = o ? `${o.p.n ? 'Peça ' + o.p.n + ' · ' : ''}${o.p.nome}` : 'Toque numa peça';
-  $('aSub').textContent = o ? `${+(+o.p.W).toFixed(1)} × ${+(+o.p.H).toFixed(1)} × ${+(+o.p.T).toFixed(1)} mm${o.p.chapa ? ' · ' + o.p.chapa : ''}${o.us.length ? ' · ' + o.us.length + ' usinagens' : ''} — toque aqui` : '1 dedo gira · 2 dedos aproximam e movem · 2 toques isolam';
+  $('aSub').textContent = o ? `${+(+o.p.W).toFixed(1)} × ${+(+o.p.H).toFixed(1)} × ${+(+o.p.T).toFixed(1)} mm${o.p.chapa ? ' · ' + o.p.chapa : ''}${o.us.length ? ' · ' + o.us.length + ' usinagens' : ''} — arraste a peça pra tirar do lugar` : '1 dedo gira · 2 dedos aproximam e movem · 2 toques isolam · toque numa peça e arraste ela';
   if (!o) { $('info').innerHTML = ''; altFolha(); return; }
   $('info').innerHTML = (o.p.onde ? `<div class="t">Onde vai</div><div style="font-size:16px">${o.p.onde}</div>` : '') + (o.p.fita ? `<div class="t">Fita</div><div style="font-size:16px">${o.p.fita}</div>` : '') + (o.us.length ? `<div class="t">Usinagens</div>` + o.us.map((u,k) => { const d = u.d;
     const med = d.f === 'c' ? 'Ø' + +(d.r*2).toFixed(1) : d.f === 'r' ? `${+d.w.toFixed(0)} × ${+d.h.toFixed(0)}` : 'recorte';
@@ -284,7 +302,7 @@ function aplicar(){
     let vis = (vP || !(p.porta || /^(Frente Gaveta|Fr Gaveta)/.test(p.nome))) && (vF || !ehF); if (isolar && sel != null) vis = k === sel;
     o.g.visible = vis;
     const off = o.base.clone().sub(Cm).multiplyScalar(f); if (p.porta) off.z += 500 * f; if (p.gav) off.z += 250 * f;
-    o.g.position.copy(isolar ? new THREE.Vector3() : off);
+    o.g.position.copy(isolar ? new THREE.Vector3() : off); if (o.drag && !isolar) o.g.position.add(o.drag);
     o.mesh.material.transparent = tr; o.mesh.material.opacity = tr ? 0.3 : 1; o.mesh.material.depthWrite = !tr;
     o.us.forEach(u => { const on = ON[u.d.t] !== false; u.mesh.visible = on; u.edge.visible = on; }); });
   pedir();
