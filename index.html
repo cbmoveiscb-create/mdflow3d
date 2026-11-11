@@ -80,12 +80,13 @@ details.mais{margin-top:10px}details.mais summary{font-size:14px;color:var(--mu)
  </div>
 </div>
 <div id="lista"></div>
-<div id="verV" style="position:fixed;right:8px;top:calc(env(safe-area-inset-top) + 58px);font-size:10px;color:var(--mu);opacity:.7;z-index:4;pointer-events:none">3D v04/11-x</div>
+<div id="verV" style="position:fixed;right:8px;top:calc(env(safe-area-inset-top) + 58px);font-size:10px;color:var(--mu);opacity:.7;z-index:4;pointer-events:none">3D v05/11-a</div>
 <div id="msg">Carregando…</div>
-<script src="three.min.js"></script>
-<script>if (!window.THREE) document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"><\/script>');</script>
+<script src="three.min.js" onerror="this.dataset.falhou=1"></script>
 <script>
-(function () {
+// three.js: do servidor da fábrica; se não tiver (GitHub Pages), carrega da internet ANTES de começar (sem document.write)
+(function carregar3D(fn) { if (window.THREE) return fn(); const sc = document.createElement('script'); sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
+  sc.onload = fn; sc.onerror = () => { const m = document.getElementById('msg'); if (m) m.innerHTML = 'Não consegui carregar o 3D — confira a internet do celular e abra de novo.'; }; document.head.appendChild(sc); })(function () {
 const $ = id => document.getElementById(id);
 // Na internet (GitHub Pages): o projeto vem de um gist secreto; na fábrica: do servidor do PC.
 const NUVEM = /\.github\.io$/i.test(location.hostname) || /[?&]nuvem=1/.test(location.search);
@@ -95,6 +96,9 @@ if (!window.THREE) { msg('Não consegui carregar o 3D.<br>' + DICA_REDE); return
 const TIPOS = { dobradica:['Furo de dobradiça','#7c3aed'], furo:['Furos (VB, pino, parafuso)','#111827'], rebaixo:['Rebaixos','#f97316'], rasgo:['Rasgo do fundo','#2563eb'], recorte:['Recortes','#dc2626'] };
 const ON = { dobradica:true, furo:true, rebaixo:true, rasgo:true, recorte:true };
 let D = null, modo = 'amb', mvAtual = null;
+// Nomes digitados (projeto, móvel, peça) vão pra tela como texto: "<" e ">" não podem virar código
+const limparTextos = v => typeof v === 'string' ? v.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]) : Array.isArray(v) ? v.map(limparTextos) : (v && typeof v === 'object') ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, limparTextos(x)])) : v;
+const des = t => String(t ?? '').replace(/&(amp|lt|gt|quot|#39);/g, (m, c) => ({ amp: '&', lt: '<', gt: '>', quot: '"', '#39': "'" })[c]);   // volta pro texto (textContent)
 // ---- cena
 const cv = $('cv'), celular = matchMedia('(pointer: coarse)').matches;
 const renderer = new THREE.WebGLRenderer({ antialias: !celular || (window.devicePixelRatio || 1) < 2, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
@@ -150,7 +154,8 @@ const el = renderer.domElement, dedos = new Map(); let ini = null, moveu = false
 el.addEventListener('contextmenu', e => e.preventDefault());
 // Arrastar a peça selecionada (1 dedo começando em cima dela): ela sai do lugar pra ver melhor
 let puxa = null; const plano = new THREE.Plane(), pTmp = new THREE.Vector3();
-el.addEventListener('pointerdown', e => { el.setPointerCapture(e.pointerId); dedos.set(e.pointerId, { x: e.clientX, y: e.clientY }); moveu = false; ini = pinca();
+let p0 = null;   // onde o 1º dedo encostou: andou mais de 8px desde ali = arrasto (não é toque), mesmo devagar
+el.addEventListener('pointerdown', e => { el.setPointerCapture(e.pointerId); dedos.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (dedos.size === 1) { moveu = false; p0 = { x: e.clientX, y: e.clientY }; } else moveu = true; ini = pinca();
   puxa = null;
   if (modo === 'mov' && dedos.size === 1 && sel != null && objs[sel] && objs[sel].g.visible) { raio(e); const h = ray.intersectObject(objs[sel].mesh, false)[0];
     if (h) { const n = new THREE.Vector3(); cam.getWorldDirection(n); plano.setFromNormalAndCoplanarPoint(n, h.point); const o = objs[sel]; o.drag = o.drag || new THREE.Vector3(); puxa = { o, ini: h.point.clone(), d0: o.drag.clone() }; } }
@@ -158,7 +163,7 @@ el.addEventListener('pointerdown', e => { el.setPointerCapture(e.pointerId); ded
 function pinca(){ const p = [...dedos.values()]; if (p.length < 2) return null; return { d: Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y), mx: (p[0].x + p[1].x)/2, my: (p[0].y + p[1].y)/2 }; }
 function mover(dx, dy){ const k = dist / 700, dir = new THREE.Vector3(); cam.getWorldDirection(dir); const lado = new THREE.Vector3().crossVectors(dir, cam.up).normalize(), up = new THREE.Vector3().crossVectors(lado, dir).normalize(); alvo.add(lado.multiplyScalar(-dx*k)).add(up.multiplyScalar(dy*k)); }
 el.addEventListener('pointermove', e => { const a = dedos.get(e.pointerId); if (!a) return; const dx = e.clientX - a.x, dy = e.clientY - a.y; dedos.set(e.pointerId, { x: e.clientX, y: e.clientY });
-  if (Math.abs(dx) + Math.abs(dy) > 2) moveu = true;
+  if (p0 && Math.hypot(e.clientX - p0.x, e.clientY - p0.y) > 8) moveu = true;
   if (puxa && dedos.size === 1) { raio(e); if (ray.ray.intersectPlane(plano, pTmp)) { puxa.o.drag.copy(puxa.d0).add(pTmp.clone().sub(puxa.ini)); aplicar(); } return; }
   if (dedos.size >= 2) { const p = pinca(); if (ini && p) { dist = Math.max(80, Math.min(40000, dist * ini.d / Math.max(1, p.d))); mover(p.mx - ini.mx, p.my - ini.my); ini = p; } }
   else if (e.buttons === 2 || e.shiftKey) mover(dx, dy);
@@ -255,7 +260,7 @@ function abrirMovel(i, peloVoltar){
   while (grMov.children.length) grMov.remove(grMov.children[0]);
   if (!cacheMov[i]) { msg('Montando o móvel…'); cacheMov[i] = montar(mv, true); cacheMov[i].raiz.position.set(-mv.L/2, -mv.A/2, -mv.P/2); }
   const r = cacheMov[i]; grMov.add(r.raiz); objs = r.objs; Cm.set(mv.L/2, mv.A/2, mv.P/2);
-  grAmb.visible = false; grMov.visible = true; $('voltar').style.display = ''; $('filtros').style.display = 'none'; $('obsMov').textContent = mv.obs || ''; $('bExp').style.display = ''; $('barra').style.display = 'flex';
+  grAmb.visible = false; grMov.visible = true; $('voltar').style.display = ''; $('filtros').style.display = 'none'; $('obsMov').textContent = des(mv.obs || ''); $('bExp').style.display = ''; $('barra').style.display = 'flex';
   $('pAmb').style.display = 'none'; $('pMov').style.display = '';
   $('tit').innerHTML = `${mv.num && mv.num !== mv.nome.replace(/^Arremate /, '') ? mv.num + ' · ' : ''}${mv.nome}<small>${Math.round(mv.L)} × ${Math.round(mv.A)} × ${Math.round(mv.P)} mm · ${mv.pecas.length} peças · ${mv.pecas.reduce((a,p)=>a+p.us.length,0)} usinagens${(mv.fitas || []).length ? ' · fita ' + (Math.round((mv.fitas || []).reduce((a, f) => a + (+f.m || 0), 0) * 10) / 10).toString().replace('.', ',') + ' m' : ''}</small>`;
   $('selP').innerHTML = '<option value="">— escolha uma peça —</option>' + objs.map((o,k)=>[o,k]).sort((a,b)=>(a[0].p.n||999)-(b[0].p.n||999)).map(([o,k])=>`<option value="${k}">${o.p.n ? o.p.n + ' · ' : ''}${o.p.nome}${o.us.length ? ` · ${o.us.length} usin.` : ''}</option>`).join('');
@@ -313,8 +318,8 @@ $('busca').addEventListener('input', listaPecas);
 function infoPeca(){
   if (modo !== 'mov') return;
   const o = sel == null ? null : objs[sel];
-  $('aTit').textContent = o ? `${o.p.n ? 'Peça ' + o.p.n + ' · ' : ''}${o.p.nome}` : 'Toque numa peça ou procure na lista';
-  $('aSub').textContent = o ? `${+(+o.p.W).toFixed(1)} × ${+(+o.p.H).toFixed(1)} × ${+(+o.p.T).toFixed(1)} mm${o.p.chapa ? ' · ' + o.p.chapa : ''}${o.us.length ? ' · ' + o.us.length + ' usinagens' : ''} · arraste pra tirar do lugar` : '1 dedo gira · 2 dedos dão zoom · toque numa peça pra ver';
+  $('aTit').textContent = o ? des(`${o.p.n ? 'Peça ' + o.p.n + ' · ' : ''}${o.p.nome}`) : 'Toque numa peça ou procure na lista';
+  $('aSub').textContent = o ? des(`${+(+o.p.W).toFixed(1)} × ${+(+o.p.H).toFixed(1)} × ${+(+o.p.T).toFixed(1)} mm${o.p.chapa ? ' · ' + o.p.chapa : ''}${o.us.length ? ' · ' + o.us.length + ' usinagens' : ''} · arraste pra tirar do lugar`) : '1 dedo gira · 2 dedos dão zoom · toque numa peça pra ver';
   $('cardP').innerHTML = o ? `<div class="card"><div class="big"><span class="nb">${o.p.n || '·'}</span><div><b>${o.p.nome}</b><small>${medTxt(o.p)} mm${o.p.chapa ? ' · ' + o.p.chapa : ''}</small></div></div>${o.p.onde ? `<div style="margin-top:8px;font-size:15px">📍 ${o.p.onde}</div>` : ''}${o.p.fita ? `<div style="margin-top:4px;font-size:14px;color:var(--mu)">Fita: ${o.p.fita}</div>` : ''}</div>` : '';
   listaPecas();
   if (!o) { $('info').innerHTML = ''; altFolha(); return; }
@@ -357,7 +362,7 @@ function rotulos(){
   const ponto = (v, txt, cls, forca) => { const q = v.clone().project(cam); if (q.z > 1 || Math.abs(q.x) > 1.1 || Math.abs(q.y) > 1.1) return;
     const sx = (q.x + 1) / 2 * innerWidth, sy = (1 - q.y) / 2 * innerHeight, w = String(txt).length * 8 + 14, h = 22;
     if (!forca && ocup.some(r => Math.abs(r.x - sx) < (r.w + w) / 2 && Math.abs(r.y - sy) < h)) return; ocup.push({ x: sx, y: sy, w });
-    const e = document.createElement('div'); e.className = 'lbl' + (cls ? ' ' + cls : ''); e.textContent = txt; e.style.left = ((q.x + 1) / 2 * innerWidth) + 'px'; e.style.top = ((1 - q.y) / 2 * innerHeight) + 'px'; document.body.appendChild(e); lbls.push(e); };
+    const e = document.createElement('div'); e.className = 'lbl' + (cls ? ' ' + cls : ''); e.textContent = des(txt); e.style.left = ((q.x + 1) / 2 * innerWidth) + 'px'; e.style.top = ((1 - q.y) / 2 * innerHeight) + 'px'; document.body.appendChild(e); lbls.push(e); };
   if (modo === 'amb') { ambMov.forEach(a => { if (!a.grupo.visible) return; const bb = new THREE.Box3().setFromObject(a.grupo); const c = bb.getCenter(new THREE.Vector3()); c.y = bb.max.y; ponto(c, a.cat === 'arremate' ? a.mv.nome : `${a.mv.num || a.i + 1} · ${a.mv.nome}`, 'mv'); }); return; }
   const raiz = cacheMov[mvAtual].raiz;
   if (sel != null && objs[sel] && objs[sel].p.n && objs[sel].g.visible) ponto(raiz.localToWorld(objs[sel].base.clone()).add(objs[sel].g.position), String(objs[sel].p.n), 'pn sel', true);
@@ -392,12 +397,12 @@ async function carregarProjeto(id){
 async function iniciar(){
   const h = decodeURIComponent(location.hash.slice(1)), [id, mvI] = h.split('/');
   if (!id) return lista();
-  try { D = await carregarProjeto(id); D.id = id; }
+  try { D = limparTextos(await carregarProjeto(id)); D.id = id; }
   catch (e) { msg((e.message || 'Não consegui abrir o projeto.') + '<br><br>' + DICA_REDE); return; }
-  document.title = D.projeto + ' · 3D'; msg('', 0); $('msg').style.opacity = 0;
+  document.title = des(D.projeto) + ' · 3D'; msg('', 0); $('msg').style.opacity = 0;
   montarAmbiente(); tam();
   if (mvI !== undefined && D.moveis[+mvI]) { history.replaceState(null, '', '#' + id); abrirMovel(+mvI); } else { verAmbiente(); msg('1 dedo: girar · 2 dedos: aproximar<br>Toque no móvel pra ver as peças', 3.5); }
 }
 altFolha(); tam(); iniciar();
-})();
+});
 </script></body></html>
